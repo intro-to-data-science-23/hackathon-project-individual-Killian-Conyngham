@@ -5,6 +5,8 @@ library(lubridate)
 library(clock)
 library(caret)
 
+library(ggridges)
+
 meof_usa_survey_df = readRDS('survey/meof_usa_survey_df.RDS')
 meof_usa_web_df = readRDS('tracking/meof_usa_web_df.RDS')
 time_zones = readRDS('tracking/time_zones.RDS')
@@ -50,11 +52,30 @@ meof_usa_web_df3 <- meof_usa_web_df2 %>%
 
 ############
 
-subset = meof_usa_web_df2[seq(1, nrow(meof_usa_web_df2), by = 10000),] %>% na.omit()
+#subset = meof_usa_web_df2[seq(1, nrow(meof_usa_web_df2), by = 100),] %>% na.omit()
+subset = filter(meof_usa_web_df2,str_detect(meof_usa_web_df2$domain, 'netflix'))
+
 subset2 <- subset %>%
   rowwise() %>%
   mutate(used_at_local = as.character(with_tz(used_at, time_zone))) %>% #Changes the timezones to be in the local time of the participant, stores the final vector as text becasue otherwise lubridate sets all the times in a column to be the timezone of the first element.
   ungroup()
+
+subset2$weekday = as.factor(wday(subset2$used_at_local))
+subset2$time = as.numeric(hms(substr(subset2$used_at_local, nchar(subset2$used_at_local) - 7, nchar(subset2$used_at_local))))/3600
+subset2$time = substr(subset2$used_at_local, nchar(subset2$used_at_local) - 7, nchar(subset2$used_at_local)))
+
+ggplot(subset2, aes(x = time, y = weekday,fill = factor(stat(quantile)))) +
+  geom_density_ridges_gradient(alpha = 0.7, quantile_lines = TRUE,
+                      calc_ecdf = TRUE) +
+  scale_fill_brewer(name = "Quartiles",type = "seq", palette = 8) +
+  scale_x_continuous(breaks = seq(0, 24, 6)) +
+  theme_minimal() +
+  labs(
+    title = "Netflix Activity Throughout the Day by Weekday",
+    x = "Time (HH)",
+    y = "Weekday (1 = Sunday)",
+    subtitle = "Distribution of Netflix activity across time by day of the week, measured as quantitiy of domains accessed containing 'netflix'."
+  )
 
 ############# IGNORE
 
